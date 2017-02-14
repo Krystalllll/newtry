@@ -1,7 +1,7 @@
 import sys
 sys.path.append('/Users/kb/bin/opencv-3.1.0/build/lib/')
 
-# import cv2
+import cv2
 import numpy as np
 
 def cross_correlation_2d(img, kernel):
@@ -26,25 +26,26 @@ def cross_correlation_2d(img, kernel):
     # input
     m, n = kernel.shape
 
+    output = np.empty(img.shape)
+
     # keep the image into 3 dimensions
-    if img.ndim == 3:
+    if len(img.shape) == 3:
         height, width, channel = img.shape
     else:
-        height, width = img.shape
-        channel = 1
+	height, width = img.shape
+	channel = 1
         img = np.expand_dims(img, axis=2)
 
     #set up a new workplace adding size of kernels and images
-    newpad = np.zeros(( m + height - 1, n + width - 1, channel), dtype=np.uint8)
+    newpad = np.zeros(( m + height - 1, n + width - 1,channel), dtype=img.dtype)
+    
     m1 = (m - 1) / 2
     n1 = (n - 1) / 2
-
     # put the image into the workplace
     newpad[m1:m1+height, n1:n1+width] = img
 
-    kernel = kernel.reshape(-1)
     matrix = m * n
-    output = np.empty(img.shape)
+    kernel = kernel.reshape(-1)
     #calculate the output image
     for i in xrange(width):
         for j in xrange(height):
@@ -84,15 +85,18 @@ def gaussian_blur_kernel_2d(sigma, width, height):
         Return a kernel of dimensions width x height such that convolving it
         with an image results in a Gaussian-blurred image.
     '''
-    sig2 = 2 * sigma * sigma
-    for x in xrange(width):
-        for y in xrange(height):
-            X = np.exp(- X/ sig2)
-            Y =  np.exp(- Y / sig2) / (sig2 * np.pi)
-            kernel = np.outer(X,Y)
-    normal = np.sum(X) * np.sum(Y)
-    return kernel / normal
+    #make the range of i and j (X and Y) btw -width/2 and width/2+1, -height/2 and height/2+1
+    x, y = width/2, height/2
+    x1,y1 = x+1, y+1
+    X = np.arange(-x,x1, 1.0)**2
+    Y = np.arange(-y,y1, 1.0)**2
 
+    X = np.exp(-X/(2 * sigma * sigma))
+    Y = np.exp(-Y/(2 * sigma * sigma)) / (2 * sigma * sigma * np.pi)
+    output = np.outer(X,Y)
+    
+    normalize = np.sum(Y) * np.sum(X)
+    return output / normalize
 
 def low_pass(img, sigma, size):
     '''Filter the image as if its filtered with a low pass filter of the given
@@ -141,5 +145,3 @@ def create_hybrid_image(img1, img2, sigma1, size1, high_low1, sigma2, size2,
     img2 *= 2 * mixin_ratio
     hybrid_img = (img1 + img2)
     return (hybrid_img * 255).clip(0, 255).astype(np.uint8)
-
-
